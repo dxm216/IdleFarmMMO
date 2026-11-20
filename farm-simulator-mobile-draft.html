@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#2e4a22">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Farm Sim">
+<link rel="manifest" href="data:application/octet-stream;base64,eyJiYWNrZ3JvdW5kX2NvbG9yIjoiIzFjMjQxNiIsImRlc2NyaXB0aW9uIjoiUGxhbnQgY3JvcHMsIGhhcnZlc3QgdGhlbSwgc2VsbCB0aGVtLCBidXkgc2VlZHMsIG1ha2UgbW9uZXkuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJuYW1lIjoiRmFybSBTaW11bGF0b3Ig4oCUIE1vYmlsZSBEcmFmdCIsIm9yaWVudGF0aW9uIjoicG9ydHJhaXQiLCJzY29wZSI6Ii4uLyIsInNob3J0X25hbWUiOiJGYXJtIFNpbSIsInN0YXJ0X3VybCI6Ii4uL2luZGV4Lmh0bWwiLCJ0aGVtZV9jb2xvciI6IiMyZTRhMjIifQ==">
+<link rel="icon" href="data:,">
+<title>Farm Simulator — Mobile Draft</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#ece7d8;
+    --panel:#f7f3e8;
+    --panel-2:#e2dcc6;
+    --ink:#22271c;
+    --muted:#5c6350;
+    --line:#3a3f2f;
+    --accent:#2e6b24;
+    --accent-ink:#ffffff;
+    --gold:#8a6d1b;
+    --gold-bg:#f3e3a1;
+    --soil:#6b4a2b;
+    --soil-dark:#4e341d;
+    --ready:#2e6b24;
+    --warn:#8a2f1b;
+    --radius:6px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#171a12;
+      --panel:#22261b;
+      --panel-2:#2c3122;
+      --ink:#ece8d8;
+      --muted:#a8ad98;
+      --line:#6b705c;
+      --accent:#5da24a;
+      --accent-ink:#10130c;
+      --gold:#e6c95c;
+      --gold-bg:#3d3418;
+      --soil:#5a3d22;
+      --soil-dark:#3f2a15;
+      --ready:#7bc96a;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family: ui-monospace, "Courier New", Courier, monospace;
+    font-size:16px;
+    line-height:1.45;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+  h1{font-size:26px;line-height:1.15;margin:4px 0 2px;letter-spacing:-0.02em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .bar{
+    display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;
+  }
+  .stat{
+    flex:1 1 100px;background:var(--panel);border:2px solid var(--line);
+    border-radius:var(--radius);padding:10px 12px;min-height:64px;
+  }
+  .stat .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .stat .value{font-size:22px;font-weight:700;line-height:1.2}
+  .stat .value.gold{color:var(--gold)}
+  section{
+    background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:14px;
+  }
+  /* Plots */
+  .plots{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (min-width:480px){.plots{grid-template-columns:1fr 1fr 1fr}}
+  .plot{
+    border:2px solid var(--soil-dark);background:var(--soil);color:#fff;
+    border-radius:4px;min-height:118px;padding:10px;display:flex;flex-direction:column;gap:6px;
+    text-align:left;width:100%;font:inherit;cursor:pointer;
+  }
+  .plot .plot-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .plot .crop-name{font-weight:700;font-size:15px}
+  .plot .crop-badge{
+    width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;
+    background:rgba(0,0,0,.28);border:2px solid rgba(255,255,255,.55);font-weight:800;font-size:14px;border-radius:3px;
+  }
+  .plot .status{font-size:13px;opacity:.92}
+  .plot .track{height:10px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.4)}
+  .plot .fill{height:100%;background:#a8d97a;width:0%}
+  .plot.is-ready{background:var(--ready);border-color:#1d4716}
+  .plot.is-empty{background:var(--panel-2);color:var(--ink);border-style:dashed;border-color:var(--line)}
+  .plot .action{margin-top:auto;font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  /* Buttons */
+  button.btn, a.btn{
+    min-height:48px;min-width:48px;padding:10px 14px;font:inherit;font-weight:700;
+    border:2px solid var(--line);border-radius:var(--radius);background:var(--panel);
+    color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  button.btn.goldbtn{background:var(--gold-bg);color:var(--ink)}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  button.btn.small{min-height:44px;padding:8px 10px;font-size:14px}
+  /* Seed selector */
+  .seed-picker{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .seed-chip{
+    min-height:48px;padding:8px 12px;border:2px solid var(--line);border-radius:var(--radius);
+    background:var(--panel);color:var(--ink);font:inherit;font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .seed-chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+  .dot{width:14px;height:14px;border:2px solid rgba(0,0,0,.35);display:inline-block;flex:0 0 14px}
+  /* Lists */
+  .shop-list,.inv-list{display:flex;flex-direction:column;gap:8px}
+  .line-item{
+    display:flex;align-items:center;gap:10px;justify-content:space-between;
+    border:1.5px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);
+  }
+  .line-item .meta{min-width:0}
+  .line-item .name{font-weight:700}
+  .line-item .detail{font-size:13px;color:var(--muted)}
+  .line-item .btns{display:flex;gap:6px;flex-shrink:0}
+  .count-pill{font-weight:800;background:var(--panel-2);border:1.5px solid var(--line);border-radius:999px;padding:2px 9px;font-size:13px;white-space:nowrap}
+  /* Leaderboard */
+  .lb-status{font-size:14px;border:1.5px dashed var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;background:var(--panel-2)}
+  .lb-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .lb-list li{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border:1.5px solid var(--line);border-radius:var(--radius);background:var(--panel);min-height:44px;align-items:center}
+  .lb-list li.me{outline:3px solid var(--gold);outline-offset:-1px}
+  .lb-rank{font-weight:800;width:28px;flex:0 0 28px}
+  .lb-name{flex:1;min-width:0;overflow-wrap:break-word}
+  .lb-score{font-weight:800;white-space:nowrap}
+  label.farm-name{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+  input[type="text"],input[type="email"],input[type="password"]{
+    width:100%;min-height:48px;padding:10px 12px;font:inherit;border:2px solid var(--line);
+    border-radius:var(--radius);background:var(--panel);color:var(--ink);
+  }
+  .note{font-size:13px;color:var(--muted)}
+  .note strong{color:var(--ink)}
+  .install-steps{margin:8px 0 0;padding-left:20px;font-size:14px}
+  .install-steps li{margin-bottom:6px}
+  /* Account / auth */
+  .auth-msg{font-size:14px;border:1.5px solid var(--line);border-radius:var(--radius);padding:9px 11px;margin-top:10px;background:var(--panel-2)}
+  .auth-msg.err{border-color:var(--warn);color:var(--warn);font-weight:700}
+  /* Developer setup */
+  details.devsetup summary{cursor:pointer;font-weight:700;font-size:15px;min-height:44px;display:flex;align-items:center}
+  pre.sql{
+    white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;
+    background:var(--panel-2);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:10px;margin:8px 0 0;max-height:360px;overflow-y:auto;
+  }
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:20;
+    background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;
+    max-width:calc(100vw - 28px);text-align:center;display:none;
+  }
+  .toast.show{display:block}
+  .footer-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .danger{color:var(--warn);border-color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Farm Simulator</h1>
+  <p class="sub">Rough draft — plant, harvest, sell, buy seeds, repeat.</p>
+
+  <div class="bar" aria-label="Your farm stats">
+    <div class="stat"><div class="label">Coins</div><div class="value gold" id="coinsVal">50</div></div>
+    <div class="stat"><div class="label">Harvested (lifetime)</div><div class="value" id="harvestedVal">0</div></div>
+    <div class="stat"><div class="label">Earned (lifetime)</div><div class="value" id="earnedVal">0</div></div>
+  </div>
+
+  <section aria-labelledby="accountH">
+    <h2 id="accountH">Your account</h2>
+
+    <div id="authSetup" style="display:none">
+      <p class="note" style="margin-top:0"><strong>Accounts aren't connected yet.</strong> This build is wired for Supabase, but the project's anon key hasn't been pasted in, so logins can't reach the database yet. Until then you're playing as a guest and everything saves on this device. The one-time setup steps are in <strong>Developer setup</strong> at the bottom of the page.</p>
+    </div>
+
+    <div id="authLoggedOut">
+      <p class="note" style="margin-top:0"><strong>Playing as guest.</strong> Log in to save your farm to your account — your farm, progress, and high scores then follow you to any device. As a guest, your farm saves on this device only.</p>
+      <label class="farm-name" for="authEmail">Email</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
+      <div style="height:8px"></div>
+      <label class="farm-name" for="authPassword">Password</label>
+      <input type="password" id="authPassword" autocomplete="current-password" placeholder="Your password">
+      <div class="auth-msg" id="authMsg" style="display:none" role="status"></div>
+      <div class="row-actions">
+        <button class="btn primary" id="loginBtn" type="button">Log in</button>
+        <button class="btn" id="signupBtn" type="button">Create account</button>
+      </div>
+      <div class="row-actions">
+        <button class="btn goldbtn" id="googleBtn" type="button">Continue with Google</button>
+      </div>
+    </div>
+
+    <div id="authLoggedIn" style="display:none">
+      <p class="note" style="margin-top:0">Logged in as <strong id="accountEmail"></strong> — your farm saves to your account as you play, and to this device as a backup.</p>
+      <label class="farm-name" for="displayNameInput">Display name (shown on high scores)</label>
+      <input type="text" id="displayNameInput" maxlength="24" placeholder="e.g. David's Farm" autocomplete="off">
+      <p class="note" id="syncStatus">Account saving is on.</p>
+      <div class="row-actions">
+        <button class="btn small" id="logoutBtn" type="button">Log out</button>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="farmH">
+    <h2 id="farmH">Your field — 6 plots</h2>
+    <p class="note" style="margin-top:0">Pick a seed below, then tap an empty plot to plant it. Tap a ready crop to harvest it.</p>
+    <div class="seed-picker" id="seedPicker" role="group" aria-label="Choose seed to plant"></div>
+    <div class="plots" id="plots"></div>
+    <div class="row-actions">
+      <button class="btn small" id="harvestAllBtn" type="button">Harvest all ready</button>
+      <button class="btn small" id="plantAllBtn" type="button">Plant all empty</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="shopH">
+    <h2 id="shopH">Seed shop</h2>
+    <div class="shop-list" id="shopList"></div>
+  </section>
+
+  <section aria-labelledby="invH">
+    <h2 id="invH">Harvest — sell it</h2>
+    <div class="inv-list" id="invList"></div>
+    <div class="row-actions">
+      <button class="btn primary" id="sellAllBtn" type="button">Sell everything</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="lbH">
+    <h2 id="lbH">High scores</h2>
+    <div class="lb-status" id="lbStatus">Loading…</div>
+    <label class="farm-name" for="farmNameInput">Your farm name (for high scores)</label>
+    <input type="text" id="farmNameInput" maxlength="24" placeholder="e.g. David's Farm" autocomplete="off">
+    <div style="height:10px"></div>
+    <ol class="lb-list" id="lbList"></ol>
+    <p class="note" id="lbNote">Logged in, your score posts to the shared leaderboard under your display name. As a guest, your best score stays on this device.</p>
+    <div class="row-actions">
+      <button class="btn small" id="saveScoreBtn" type="button">Save my score</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="installH">
+    <h2 id="installH">Put it on your home screen</h2>
+    <p class="note" style="margin-top:0">No app store, no Godot, no downloads. Open this page in your phone browser, then:</p>
+    <ol class="install-steps">
+      <li><strong>iPhone (Safari):</strong> tap Share, then “Add to Home Screen.”</li>
+      <li><strong>Android (Chrome):</strong> tap the ⋮ menu, then “Add to Home screen” / “Install app.”</li>
+      <li>It opens fullscreen from the icon, like a real app. Your farm saves on that phone.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="nextH">
+    <h2 id="nextH">Coming later — not in this draft</h2>
+    <p class="note" style="margin:0">Accounts, cloud farm saves, and the shared leaderboard are in. Still to come: the <strong>player marketplace</strong>, where players trade with each other — it plugs into the same Supabase backend as the logins and high scores.</p>
+  </section>
+
+  <section aria-labelledby="devH">
+    <h2 id="devH">Developer setup</h2>
+    <details class="devsetup">
+      <summary>Supabase setup — anon key, database SQL, Google login</summary>
+      <p class="note">One-time setup, in order:</p>
+      <ol class="install-steps">
+        <li><strong>Anon key:</strong> in the Supabase dashboard go to Settings → API and copy the <strong>anon public</strong> key. Paste it into the <strong>SUPABASE_ANON_KEY</strong> constant at the top of this file's script (the project URL is already set). The anon key is a publishable client key — safe to ship in this file; the database is protected by Row Level Security, below.</li>
+        <li><strong>Database:</strong> in the Supabase dashboard open the SQL Editor, paste the SQL below, and run it once. It creates the <strong>profiles</strong>, <strong>farm_saves</strong>, and <strong>high_scores</strong> tables with Row Level Security: players can only read and write their own profile and farm save, and high scores are readable by everyone but can only be added under your own account.</li>
+        <li><strong>Email login:</strong> works out of the box (Auth → Providers → Email). New accounts get a confirmation email by default; for testing you can switch off “Confirm email” in that provider so new accounts can log in right away.</li>
+        <li><strong>Google login:</strong> create an OAuth client in Google Cloud Console, then in the Supabase dashboard go to Auth → Providers → Google, switch it on, and paste the Google client ID and secret. Also add this page's hosted URL under Auth → URL Configuration → Redirect URLs. Until that is done, the “Continue with Google” button shows a clear “not set up yet” message instead of failing silently.</li>
+        <li><strong>Hosting:</strong> this login build is meant to be exported and hosted on your own static host (for example Netlify Drop) — it is the same single file.</li>
+      </ol>
+      <p class="note" style="margin-bottom:0"><strong>SQL — run once in the Supabase SQL Editor:</strong></p>
+      <pre class="sql">-- Farm Simulator — Supabase schema
+-- Tables: profiles, farm_saves, high_scores (with Row Level Security)
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  display_name text,
+  created_at timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+create policy "profiles: read own" on public.profiles
+  for select using (auth.uid() = id);
+create policy "profiles: insert own" on public.profiles
+  for insert with check (auth.uid() = id);
+create policy "profiles: update own" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+create table if not exists public.farm_saves (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  save jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.farm_saves enable row level security;
+create policy "farm_saves: read own" on public.farm_saves
+  for select using (auth.uid() = user_id);
+create policy "farm_saves: insert own" on public.farm_saves
+  for insert with check (auth.uid() = user_id);
+create policy "farm_saves: update own" on public.farm_saves
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table if not exists public.high_scores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  display_name text,
+  lifetime_earned numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.high_scores enable row level security;
+create policy "high_scores: read all" on public.high_scores
+  for select using (true);
+create policy "high_scores: insert own" on public.high_scores
+  for insert with check (auth.uid() = user_id);</pre>
+    </details>
+  </section>
+
+  <div class="footer-actions">
+    <button class="btn small danger" id="resetBtn" type="button">Reset farm</button>
+  </div>
+  <p class="note">Draft build. Guest farms save in this browser on this device; logged-in farms also save to your Supabase account. This login build is for self-hosting via export.</p>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/*
+  FARM SIMULATOR — MOBILE DRAFT (static) + SUPABASE ACCOUNTS
+  Core loop: buy seeds -> plant -> grow -> harvest -> sell -> repeat.
+  Accounts: Supabase Auth (email + password, Google), cloud farm saves,
+  and a shared high-score leaderboard. Logged out, the game plays fully
+  in guest mode with the local save.
+
+  DATA MODEL:
+    Local (localStorage key "farmSimMobileDraft_v1"):
+      { coins, seeds{}, harvested{}, plots[], stats{}, farmName, bestCoins, localScore }
+      — always kept, guest save and logged-in backup.
+    Supabase (per logged-in user):
+      profiles    — one row per user: email + display name.
+      farm_saves  — one row per user: the whole farm as jsonb.
+      high_scores — one row per submitted score, ranked by lifetime_earned.
+
+  =====================================================================
+  SUPABASE DATABASE SETUP — run this SQL once in the Supabase dashboard
+  (SQL Editor -> New query -> paste -> Run). It creates the three tables
+  with Row Level Security: users can only read/write their own profile
+  and farm save; high_scores is readable by everyone but writable only
+  by its owner.
+  =====================================================================
+
+  -- Farm Simulator — Supabase schema
+  -- Tables: profiles, farm_saves, high_scores (with Row Level Security)
+
+  create table if not exists public.profiles (
+    id uuid primary key references auth.users(id) on delete cascade,
+    email text,
+    display_name text,
+    created_at timestamptz not null default now()
+  );
+  alter table public.profiles enable row level security;
+  create policy "profiles: read own" on public.profiles
+    for select using (auth.uid() = id);
+  create policy "profiles: insert own" on public.profiles
+    for insert with check (auth.uid() = id);
+  create policy "profiles: update own" on public.profiles
+    for update using (auth.uid() = id) with check (auth.uid() = id);
+
+  create table if not exists public.farm_saves (
+    user_id uuid primary key references auth.users(id) on delete cascade,
+    save jsonb not null,
+    updated_at timestamptz not null default now()
+  );
+  alter table public.farm_saves enable row level security;
+  create policy "farm_saves: read own" on public.farm_saves
+    for select using (auth.uid() = user_id);
+  create policy "farm_saves: insert own" on public.farm_saves
+    for insert with check (auth.uid() = user_id);
+  create policy "farm_saves: update own" on public.farm_saves
+    for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+  create table if not exists public.high_scores (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    display_name text,
+    lifetime_earned numeric not null default 0,
+    created_at timestamptz not null default now()
+  );
+  alter table public.high_scores enable row level security;
+  create policy "high_scores: read all" on public.high_scores
+    for select using (true);
+  create policy "high_scores: insert own" on public.high_scores
+    for insert with check (auth.uid() = user_id);
+
+  =====================================================================
+  GOOGLE LOGIN SETUP: the "Continue with Google" button calls Supabase
+  OAuth. It only works once the Google provider is enabled in the
+  Supabase dashboard (Auth -> Providers -> Google) with a Google Cloud
+  OAuth client ID and secret, and this page's URL is added under
+  Auth -> URL Configuration -> Redirect URLs. Until then the button
+  shows a "not set up yet" message.
+  =====================================================================
+*/
+
+/* ================= SUPABASE CONFIG — EDIT THIS ================= */
+// Project URL (Supabase dashboard -> Settings -> API -> Project URL)
+var SUPABASE_URL = "https://rwmdbeursvjxwwbtfkvg.supabase.co";
+// Anon key: get it from the Supabase dashboard -> Settings -> API ->
+// "anon public" key, and paste it between the quotes below. It is a
+// publishable client key (safe in this file — Row Level Security in
+// the database is what protects the data). Until it is pasted in,
+// accounts stay disconnected and the game runs in guest mode.
+var SUPABASE_ANON_KEY = "sb_publishable_mIpsFUJmbIczUaDDYA0flQ_5jUR6CSd";
+/* =============================================================== */
+
+var CROPS = [
+  { id:"radish",  name:"Radish",  letter:"R", color:"#c94f4f", growSec:15,  cost:1, sell:2.5 },
+  { id:"lettuce", name:"Lettuce", letter:"L", color:"#5da24a", growSec:30,  cost:2, sell:5 },
+  { id:"tomato",  name:"Tomato",  letter:"T", color:"#d13b2f", growSec:45,  cost:3, sell:7.5 },
+  { id:"corn",    name:"Corn",    letter:"C", color:"#d9a41f", growSec:60,  cost:4, sell:10 },
+  { id:"pumpkin", name:"Pumpkin", letter:"P", color:"#d97a1f", growSec:120, cost:5, sell:12.5 }
+];
+function cropById(id){ for(var i=0;i<CROPS.length;i++){ if(CROPS[i].id===id) return CROPS[i]; } return null; }
+
+var SAVE_KEY = "farmSimMobileDraft_v1";
+var MIGRATED_KEY = "farmSimMobileDraft_migrated_"; // + user id, set once the guest save has been moved into that account
+var state = null;
+
+/* Auth state */
+var sb = null;               // Supabase client (null until configured)
+var currentUser = null;      // logged-in user or null (guest)
+var accountLoadedFor = null; // user id whose cloud farm has been loaded this session
+var cloudSaveTimer = null;
+var sharedScores = null;     // top shared scores, or null when unavailable
+
+function defaultState(){
+  var s = { coins:50, seeds:{}, harvested:{}, plots:[], stats:{ harvested:0, earned:0, planted:0, bought:0 }, farmName:"", bestCoins:50, localScore:null };
+  CROPS.forEach(function(c){ s.seeds[c.id]=0; s.harvested[c.id]=0; });
+  for(var i=0;i<6;i++) s.plots.push(null);
+  return s;
+}
+function normalizeState(s){
+  var d = defaultState();
+  if(!s || typeof s !== "object") return d;
+  for(var k in d){ if(s[k]===undefined) s[k]=d[k]; }
+  CROPS.forEach(function(c){ if(s.seeds[c.id]===undefined) s.seeds[c.id]=0; if(s.harvested[c.id]===undefined) s.harvested[c.id]=0; });
+  while(s.plots.length<6) s.plots.push(null);
+  return s;
+}
+function loadState(){
+  try{
+    var raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return defaultState();
+    return normalizeState(JSON.parse(raw));
+  }catch(e){ return defaultState(); }
+}
+function saveLocalOnly(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){} }
+function saveState(){ saveLocalOnly(); scheduleCloudSave(); }
+
+/* ---------- Cloud farm save (debounced) ---------- */
+function scheduleCloudSave(){
+  if(!sb || !currentUser) return;
+  if(cloudSaveTimer) clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(pushCloudSave, 1500);
+}
+async function pushCloudSave(){
+  if(!sb || !currentUser) return;
+  setSyncStatus("Saving to your account…");
+  try{
+    var r = await sb.from("farm_saves").upsert(
+      { user_id: currentUser.id, save: state, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    if(r && r.error) setSyncStatus("Account save failed (" + r.error.message + ") — your farm is still saved on this device.");
+    else setSyncStatus("Saved to your account.");
+  }catch(e){ setSyncStatus("Account save failed — your farm is still saved on this device."); }
+}
+function setSyncStatus(msg){
+  var el = document.getElementById("syncStatus");
+  if(el) el.textContent = msg;
+}
+
+var activeSeedId = "radish";
+var toastTimer = null;
+function toast(msg){
+  var el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 2400);
+}
+function fmt(n){
+  if(Math.round(n)===n) return String(Math.round(n));
+  return (Math.round(n*10)/10).toString();
+}
+
+/* ---------- Rendering ---------- */
+function renderStats(){
+  document.getElementById("coinsVal").textContent = fmt(state.coins);
+  document.getElementById("harvestedVal").textContent = fmt(state.stats.harvested);
+  document.getElementById("earnedVal").textContent = fmt(state.stats.earned);
+}
+function renderSeedPicker(){
+  var wrap = document.getElementById("seedPicker");
+  wrap.innerHTML = "";
+  CROPS.forEach(function(c){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "seed-chip";
+    b.setAttribute("aria-pressed", c.id===activeSeedId ? "true" : "false");
+    b.innerHTML = '<span class="dot" style="background:'+c.color+'"></span>' + c.name + ' (' + (state.seeds[c.id]||0) + ')';
+    b.addEventListener("click", function(){ activeSeedId = c.id; renderAll(); });
+    wrap.appendChild(b);
+  });
+}
+function plotInfo(plot){
+  if(!plot) return null;
+  var c = cropById(plot.cropId);
+  var elapsed = (Date.now() - plot.plantedAt) / 1000;
+  var pct = Math.min(100, Math.floor(elapsed / c.growSec * 100));
+  return { crop:c, elapsed:elapsed, pct:pct, ready: elapsed >= c.growSec, remaining: Math.max(0, Math.ceil(c.growSec - elapsed)) };
+}
+function renderPlots(){
+  var wrap = document.getElementById("plots");
+  wrap.innerHTML = "";
+  state.plots.forEach(function(plot, idx){
+    var b = document.createElement("button");
+    b.type = "button";
+    if(!plot){
+      var active = cropById(activeSeedId);
+      b.className = "plot is-empty";
+      b.innerHTML = '<div class="plot-top"><span class="crop-name">Empty plot</span></div>' +
+        '<div class="status">Tap to plant ' + active.name + ' — you have ' + (state.seeds[activeSeedId]||0) + '</div>' +
+        '<div class="action">Plant ' + active.name + '</div>';
+      b.addEventListener("click", function(){ plantAt(idx); });
+    } else {
+      var info = plotInfo(plot);
+      b.className = "plot" + (info.ready ? " is-ready" : "");
+      if(info.ready){
+        b.innerHTML = '<div class="plot-top"><span class="crop-name">' + info.crop.name + '</span><span class="crop-badge">' + info.crop.letter + '</span></div>' +
+          '<div class="status">Ready!</div><div class="track"><div class="fill" style="width:100%"></div></div>' +
+          '<div class="action">Tap to harvest</div>';
+        b.addEventListener("click", function(){ harvestAt(idx); });
+      } else {
+        b.innerHTML = '<div class="plot-top"><span class="crop-name">' + info.crop.name + '</span><span class="crop-badge">' + info.crop.letter + '</span></div>' +
+          '<div class="status">Growing — ' + info.remaining + 's left</div><div class="track"><div class="fill" style="width:' + info.pct + '%"></div></div>' +
+          '<div class="action">' + info.pct + '% grown</div>';
+      }
+    }
+    wrap.appendChild(b);
+  });
+  var anyReady = state.plots.some(function(p){ return p && plotInfo(p).ready; });
+  document.getElementById("harvestAllBtn").disabled = !anyReady;
+  var anyEmpty = state.plots.some(function(p){ return !p; });
+  document.getElementById("plantAllBtn").disabled = !anyEmpty || (state.seeds[activeSeedId]||0) <= 0;
+}
+function renderShop(){
+  var wrap = document.getElementById("shopList");
+  wrap.innerHTML = "";
+  CROPS.forEach(function(c){
+    var row = document.createElement("div"); row.className = "line-item";
+    row.innerHTML = '<div class="meta"><div class="name"><span class="dot" style="background:'+c.color+';vertical-align:-2px;margin-right:6px"></span>' + c.name + ' seed</div>' +
+      '<div class="detail">Grows in ' + c.growSec + 's · sells for ' + fmt(c.sell) + ' coins · you have ' + (state.seeds[c.id]||0) + '</div></div>';
+    var btns = document.createElement("div"); btns.className = "btns";
+    var buy1 = document.createElement("button"); buy1.type="button"; buy1.className="btn small primary"; buy1.textContent = "Buy · " + fmt(c.cost);
+    buy1.disabled = state.coins < c.cost;
+    buy1.addEventListener("click", function(){ buySeed(c.id, 1); });
+    var buy5 = document.createElement("button"); buy5.type="button"; buy5.className="btn small"; buy5.textContent = "Buy 5 · " + fmt(c.cost*5);
+    buy5.disabled = state.coins < c.cost*5;
+    buy5.addEventListener("click", function(){ buySeed(c.id, 5); });
+    btns.appendChild(buy1); btns.appendChild(buy5);
+    row.appendChild(btns);
+    wrap.appendChild(row);
+  });
+}
+function renderInventory(){
+  var wrap = document.getElementById("invList");
+  wrap.innerHTML = "";
+  var totalItems = 0;
+  CROPS.forEach(function(c){
+    var n = state.harvested[c.id]||0; totalItems += n;
+    var row = document.createElement("div"); row.className = "line-item";
+    row.innerHTML = '<div class="meta"><div class="name">' + c.name + ' <span class="count-pill">× ' + n + '</span></div>' +
+      '<div class="detail">Sells for ' + fmt(c.sell) + ' coins each</div></div>';
+    var btns = document.createElement("div"); btns.className = "btns";
+    var s1 = document.createElement("button"); s1.type="button"; s1.className="btn small"; s1.textContent="Sell 1"; s1.disabled = n<=0;
+    s1.addEventListener("click", function(){ sellCrop(c.id, 1); });
+    var sAll = document.createElement("button"); sAll.type="button"; sAll.className="btn small primary"; sAll.textContent="Sell all"; sAll.disabled = n<=0;
+    sAll.addEventListener("click", function(){ sellCrop(c.id, n); });
+    btns.appendChild(s1); btns.appendChild(sAll);
+    row.appendChild(btns);
+    wrap.appendChild(row);
+  });
+  document.getElementById("sellAllBtn").disabled = totalItems<=0;
+}
+function renderAll(){ renderStats(); renderSeedPicker(); renderPlots(); renderShop(); renderInventory(); }
+
+/* ---------- Actions ---------- */
+function buySeed(id, qty){
+  var c = cropById(id); var total = c.cost * qty;
+  if(state.coins < total){ toast("Not enough coins"); return; }
+  state.coins -= total; state.seeds[id] += qty; state.stats.bought += qty;
+  saveState(); renderAll(); toast("Bought " + qty + " " + c.name + " seed" + (qty>1?"s":""));
+}
+function plantAt(idx){
+  if(state.plots[idx]) return;
+  var c = cropById(activeSeedId);
+  if((state.seeds[activeSeedId]||0) <= 0){ toast("No " + c.name + " seeds — buy some in the shop"); return; }
+  state.seeds[activeSeedId] -= 1;
+  state.plots[idx] = { cropId: activeSeedId, plantedAt: Date.now() };
+  state.stats.planted += 1;
+  saveState(); renderAll();
+}
+function harvestAt(idx){
+  var plot = state.plots[idx]; if(!plot) return;
+  var info = plotInfo(plot); if(!info.ready) return;
+  state.harvested[plot.cropId] += 1; state.stats.harvested += 1;
+  state.plots[idx] = null;
+  saveState(); renderAll(); toast("Harvested 1 " + info.crop.name);
+}
+function sellCrop(id, qty){
+  var c = cropById(id); var n = Math.min(qty, state.harvested[id]||0);
+  if(n<=0) return;
+  var gain = c.sell * n;
+  state.harvested[id] -= n; state.coins += gain; state.stats.earned += gain;
+  if(state.coins > state.bestCoins) state.bestCoins = state.coins;
+  saveState(); renderAll(); toast("Sold " + n + " " + c.name + " for " + fmt(gain) + " coins");
+}
+
+/* ---------- Account UI ---------- */
+function renderAuth(){
+  var setup = document.getElementById("authSetup");
+  var out = document.getElementById("authLoggedOut");
+  var inn = document.getElementById("authLoggedIn");
+  if(!setup || !out || !inn) return;
+  setup.style.display = sb ? "none" : "block";
+  if(currentUser){
+    out.style.display = "none"; inn.style.display = "block";
+    document.getElementById("accountEmail").textContent = currentUser.email || "";
+    var dn = document.getElementById("displayNameInput");
+    if(dn && document.activeElement !== dn) dn.value = state.farmName || "";
+  } else {
+    inn.style.display = "none"; out.style.display = "block";
+  }
+}
+function setAuthMsg(msg, isErr){
+  var el = document.getElementById("authMsg");
+  if(!el) return;
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+  el.className = "auth-msg" + (isErr ? " err" : "");
+}
+function authNotConnectedMsg(){
+  return "Accounts aren't connected yet — the Supabase anon key still needs to be pasted into the SUPABASE_ANON_KEY constant in this file. See Developer setup at the bottom of the page. You're still playing as a guest meanwhile.";
+}
+
+/* ---------- Leaderboard (shared when logged in / connected, local otherwise) ---------- */
+async function loadSharedScores(){
+  if(!sb){ sharedScores = null; renderLeaderboard(); return; }
+  try{
+    var r = await sb.from("high_scores")
+      .select("display_name, lifetime_earned, user_id, created_at")
+      .order("lifetime_earned", { ascending:false })
+      .limit(10);
+    sharedScores = (r && !r.error && r.data) ? r.data : null;
+  }catch(e){ sharedScores = null; }
+  renderLeaderboard();
+}
+function renderLeaderboard(){
+  var el = document.getElementById("lbStatus");
+  var list = document.getElementById("lbList");
+  if(!el || !list) return;
+  var btn = document.getElementById("saveScoreBtn");
+  if(currentUser){
+    el.innerHTML = "<strong>Shared leaderboard.</strong> You're logged in — scores post under your account and your farm saves to it.";
+    if(btn) btn.textContent = "Submit my score";
+  } else if(sb){
+    el.innerHTML = "<strong>Shared leaderboard.</strong> Log in to save your farm to your account and post scores under your name. Playing as guest: your best score stays on this device.";
+    if(btn) btn.textContent = "Save my score (this device)";
+  } else {
+    el.innerHTML = "<strong>Local leaderboard.</strong> Accounts aren't connected yet (anon key needed — see Developer setup), so scores are stored on this device only for now.";
+    if(btn) btn.textContent = "Save my score";
+  }
+  list.innerHTML = "";
+  if(sharedScores && sharedScores.length){
+    sharedScores.forEach(function(row, i){
+      var li = document.createElement("li");
+      if(currentUser && row.user_id === currentUser.id) li.className = "me";
+      li.innerHTML = '<span class="lb-rank">' + (i+1) + '.</span><span class="lb-name"></span><span class="lb-score">' + fmt(row.lifetime_earned) + ' earned</span>';
+      li.querySelector(".lb-name").textContent = row.display_name || "Unnamed Farm";
+      list.appendChild(li);
+    });
+    return;
+  }
+  if(sharedScores && !sharedScores.length){
+    var li0 = document.createElement("li");
+    li0.innerHTML = '<span class="lb-name">No shared scores yet — log in and be the first on the board.</span>';
+    list.appendChild(li0);
+    return;
+  }
+  // Local fallback (accounts not connected, or shared board unreachable)
+  var li = document.createElement("li");
+  li.className = "me";
+  var name = (state.localScore && state.localScore.name) || state.farmName || "Your farm";
+  var best = state.localScore ? state.localScore.coins : state.bestCoins;
+  li.innerHTML = '<span class="lb-rank">1.</span><span class="lb-name"></span><span class="lb-score">' + fmt(best) + ' coins</span>';
+  li.querySelector(".lb-name").textContent = name + " — best on this device";
+  list.appendChild(li);
+  if(state.localScore){
+    var li2 = document.createElement("li");
+    li2.innerHTML = '<span class="lb-name">Last saved score</span><span class="lb-score">' + fmt(state.localScore.earned) + ' earned · ' + fmt(state.localScore.harvested) + ' harvested</span>';
+    list.appendChild(li2);
+  }
+}
+async function saveScore(){
+  if(state.coins > state.bestCoins) state.bestCoins = state.coins;
+  state.localScore = {
+    name: (state.farmName || "Unnamed Farm").slice(0,24),
+    coins: Math.round(state.bestCoins),
+    earned: Math.round(state.stats.earned),
+    harvested: state.stats.harvested,
+    savedAt: new Date().toISOString()
+  };
+  saveState();
+  if(sb && currentUser){
+    var name = (state.farmName || currentUser.email || "Unnamed Farm").slice(0,24);
+    try{
+      var r = await sb.from("high_scores").insert({
+        user_id: currentUser.id,
+        display_name: name,
+        lifetime_earned: Math.round(state.stats.earned)
+      });
+      if(r && r.error){ toast("Couldn't submit score: " + r.error.message); renderLeaderboard(); return; }
+      toast("Score submitted to the shared leaderboard");
+      loadSharedScores();
+      return;
+    }catch(e){ toast("Couldn't submit score — saved on this device instead"); renderLeaderboard(); return; }
+  }
+  renderLeaderboard();
+  toast(sb ? "Score saved on this device — log in to post it to the shared leaderboard" : "Score saved to the local leaderboard on this device");
+}
+
+/* ---------- Supabase Auth ---------- */
+function supabaseConfigured(){
+  return !!SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "PASTE_YOUR_ANON_KEY_HERE";
+}
+function initSupabase(){
+  if(!supabaseConfigured()) return null;
+  if(typeof window.supabase === "undefined" || !window.supabase.createClient) return null;
+  try{ return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }catch(e){ return null; }
+}
+async function updateProfileName(){
+  if(!sb || !currentUser) return;
+  try{
+    await sb.from("profiles").upsert(
+      { id: currentUser.id, email: currentUser.email, display_name: state.farmName || null },
+      { onConflict: "id" }
+    );
+  }catch(e){}
+}
+async function handleSignedIn(user){
+  currentUser = user;
+  if(accountLoadedFor === user.id){ renderAuth(); return; }
+  accountLoadedFor = user.id;
+  renderAuth();
+  // Load the account's farm (if any)
+  var cloudSave = null;
+  try{
+    var r = await sb.from("farm_saves").select("save").eq("user_id", user.id).maybeSingle();
+    if(r && !r.error && r.data && r.data.save) cloudSave = r.data.save;
+  }catch(e){}
+  var migrated = false;
+  try{ migrated = localStorage.getItem(MIGRATED_KEY + user.id) === "1"; }catch(e){}
+  if(cloudSave){
+    state = normalizeState(cloudSave);
+    saveLocalOnly();
+    try{ localStorage.setItem(MIGRATED_KEY + user.id, "1"); }catch(e){}
+    setSyncStatus("Farm loaded from your account.");
+  } else if(!migrated){
+    // First login for this account: move the local guest farm into it, once.
+    await pushCloudSave();
+    try{ localStorage.setItem(MIGRATED_KEY + user.id, "1"); }catch(e){}
+    setSyncStatus("Your guest farm was moved into your account.");
+  } else {
+    await pushCloudSave();
+    setSyncStatus("Logged in — farm saving to your account.");
+  }
+  // Profile: a saved display name wins; otherwise store the current one.
+  try{
+    var pr = await sb.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+    if(pr && !pr.error && pr.data && pr.data.display_name) state.farmName = pr.data.display_name;
+    await sb.from("profiles").upsert(
+      { id: user.id, email: user.email, display_name: state.farmName || null },
+      { onConflict: "id" }
+    );
+    saveLocalOnly();
+  }catch(e){}
+  var nameInput = document.getElementById("farmNameInput");
+  if(nameInput) nameInput.value = state.farmName || "";
+  renderAll(); renderAuth(); renderLeaderboard();
+  loadSharedScores();
+  toast("Logged in — farm synced to your account");
+}
+function handleSignedOut(){
+  currentUser = null;
+  accountLoadedFor = null;
+  if(cloudSaveTimer){ clearTimeout(cloudSaveTimer); cloudSaveTimer = null; }
+  renderAuth(); renderLeaderboard();
+}
+async function handleSignUp(){
+  if(!sb){ setAuthMsg(authNotConnectedMsg(), true); return; }
+  var email = document.getElementById("authEmail").value.trim();
+  var pass = document.getElementById("authPassword").value;
+  if(!email || !pass){ setAuthMsg("Enter an email and a password first.", true); return; }
+  setAuthMsg("Creating your account…");
+  try{
+    var res = await sb.auth.signUp({ email: email, password: pass });
+    if(res.error){ setAuthMsg(res.error.message, true); return; }
+    if(res.data && res.data.session) setAuthMsg("Account created — you're logged in.");
+    else setAuthMsg("Account created. Check your email for a confirmation link, then log in.");
+  }catch(e){ setAuthMsg("Couldn't reach the account server — check your connection and try again.", true); }
+}
+async function handleSignIn(){
+  if(!sb){ setAuthMsg(authNotConnectedMsg(), true); return; }
+  var email = document.getElementById("authEmail").value.trim();
+  var pass = document.getElementById("authPassword").value;
+  if(!email || !pass){ setAuthMsg("Enter your email and password first.", true); return; }
+  setAuthMsg("Logging in…");
+  try{
+    var res = await sb.auth.signInWithPassword({ email: email, password: pass });
+    if(res.error){ setAuthMsg(res.error.message, true); return; }
+    setAuthMsg("Logged in.");
+    // onAuthStateChange also fires and loads the account farm.
+  }catch(e){ setAuthMsg("Couldn't reach the account server — check your connection and try again.", true); }
+}
+async function handleGoogle(){
+  if(!sb){
+    setAuthMsg("Google login is not set up yet — accounts aren't connected (the Supabase anon key still needs to be pasted in). See Developer setup at the bottom of the page.", true);
+    return;
+  }
+  try{
+    var res = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.href.split("#")[0].split("?")[0] }
+    });
+    if(res && res.error){
+      setAuthMsg("Google login is not set up yet — the Google provider needs to be enabled in the Supabase dashboard (Auth → Providers → Google, with a Google Cloud OAuth client ID and secret). See Developer setup at the bottom of the page.", true);
+    }
+    // On success the browser redirects to Google, then back here logged in.
+  }catch(e){
+    setAuthMsg("Google login is not set up yet — the Google provider needs to be enabled in the Supabase dashboard (Auth → Providers → Google). See Developer setup at the bottom of the page.", true);
+  }
+}
+async function handleSignOut(){
+  if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
+  handleSignedOut();
+  toast("Logged out — you're playing as a guest. Your farm stays saved on this device.");
+}
+async function initAuth(){
+  sb = initSupabase();
+  renderAuth();
+  renderLeaderboard();
+  if(!sb) return;
+  sb.auth.onAuthStateChange(function(event, session){
+    if(session && session.user) handleSignedIn(session.user);
+    else if(event === "SIGNED_OUT") handleSignedOut();
+  });
+  try{
+    var res = await sb.auth.getSession();
+    if(res && res.data && res.data.session && res.data.session.user) handleSignedIn(res.data.session.user);
+  }catch(e){}
+  loadSharedScores();
+}
+
+/* ---------- Wire up ---------- */
+state = loadState();
+if(state.coins > state.bestCoins) state.bestCoins = state.coins;
+
+var nameInput = document.getElementById("farmNameInput");
+nameInput.value = state.farmName || "";
+nameInput.addEventListener("change", function(){
+  state.farmName = nameInput.value.trim();
+  saveState(); renderAuth(); renderLeaderboard(); updateProfileName();
+});
+
+var displayNameInput = document.getElementById("displayNameInput");
+displayNameInput.addEventListener("change", function(){
+  state.farmName = displayNameInput.value.trim();
+  nameInput.value = state.farmName;
+  saveState(); renderLeaderboard(); updateProfileName();
+});
+
+document.getElementById("loginBtn").addEventListener("click", handleSignIn);
+document.getElementById("signupBtn").addEventListener("click", handleSignUp);
+document.getElementById("googleBtn").addEventListener("click", handleGoogle);
+document.getElementById("logoutBtn").addEventListener("click", handleSignOut);
+document.getElementById("authPassword").addEventListener("keydown", function(e){ if(e.key === "Enter") handleSignIn(); });
+
+document.getElementById("harvestAllBtn").addEventListener("click", function(){
+  var count = 0;
+  state.plots.forEach(function(p, i){ if(p && plotInfo(p).ready){ state.harvested[p.cropId]+=1; state.stats.harvested+=1; state.plots[i]=null; count++; } });
+  if(count){ saveState(); renderAll(); toast("Harvested " + count + " crop" + (count>1?"s":"")); }
+});
+document.getElementById("plantAllBtn").addEventListener("click", function(){
+  var c = cropById(activeSeedId); var planted = 0;
+  state.plots.forEach(function(p, i){ if(!p && (state.seeds[activeSeedId]||0)>0){ state.seeds[activeSeedId]-=1; state.plots[i]={ cropId:activeSeedId, plantedAt:Date.now() }; state.stats.planted+=1; planted++; } });
+  if(planted){ saveState(); renderAll(); toast("Planted " + planted + " " + c.name); }
+  else toast("Nothing to plant — no empty plots or no " + c.name + " seeds");
+});
+document.getElementById("sellAllBtn").addEventListener("click", function(){
+  var gain = 0, count = 0;
+  CROPS.forEach(function(c){ var n = state.harvested[c.id]||0; if(n>0){ gain += c.sell*n; count += n; state.harvested[c.id]=0; } });
+  if(count>0){ state.coins += gain; state.stats.earned += gain; if(state.coins>state.bestCoins) state.bestCoins=state.coins; saveState(); renderAll(); toast("Sold " + count + " items for " + fmt(gain) + " coins"); }
+});
+document.getElementById("saveScoreBtn").addEventListener("click", saveScore);
+
+var resetArmed = false, resetTimer = null;
+document.getElementById("resetBtn").addEventListener("click", function(){
+  var btn = this;
+  if(!resetArmed){
+    resetArmed = true; btn.textContent = "Tap again to confirm reset";
+    resetTimer = setTimeout(function(){ resetArmed=false; btn.textContent="Reset farm"; }, 3500);
+    return;
+  }
+  clearTimeout(resetTimer); resetArmed = false; btn.textContent = "Reset farm";
+  var name = state.farmName;
+  state = defaultState(); state.farmName = name;
+  saveState(); renderAll(); renderLeaderboard(); toast("Farm reset — back to 50 coins");
+});
+
+renderAll();
+renderLeaderboard();
+initAuth();
+setInterval(function(){ renderPlots(); }, 500); // growth ticker — re-renders progress/ready state
+</script>
+</body>
+</html>
